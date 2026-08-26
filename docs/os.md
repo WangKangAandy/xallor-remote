@@ -1,0 +1,73 @@
+# 操作系统差异
+
+SSOT：Windows / Linux / macOS 行为。协议与 tool 名字相同；差异只在 Runtime。Relay 不解释路径。
+
+---
+
+## 1. 矩阵
+
+| 能力 | Windows x64 | Linux x64 glibc | macOS |
+| --- | --- | --- | --- |
+| Runtime + MCP + CLI | v0 Must | v0 Must | v0.1 |
+| TUI | 可选 | v0.1 Must（无 GUI） | 可选 |
+| GUI | v0.1 Should | 可选 | v0.1 |
+| 开机启动 | Should | Should | Should |
+| SYSTEM/root 服务 | 不做 v0 | 不做 v0 | 不做 v0 |
+| ARM | 以后 | 以后 | 以后 |
+| WSL 当 Linux 目标 | 用 Linux 包 | — | — |
+| 截屏 / 键鼠 | 不做 | 不做 | 不做 |
+
+双 OS 都过才算支持。v0 无 GUI Linux 走 CLI，不依赖 TUI。
+
+---
+
+## 2. Shell
+
+MCP **原样** 传 `command`。Windows 默认 `powershell.exe -NoProfile -NonInteractive -Command`（可配 pwsh/cmd）。Linux 默认 `bash -lc`，否则 `sh -c`。不翻译 bash↔PowerShell。cwd 相对 workspace。
+
+---
+
+## 3. 路径
+
+Workspace 默认：`%USERPROFILE%\XallorRemote\workspace` / `~/XallorRemote/workspace`。`..`、盘符跳转、逃出根的链接一律拒绝。Windows 大小写不敏感（先规范化）；Linux 敏感。
+
+---
+
+## 4. 编码
+
+上送永远 UTF-8。Windows 按控制台代码页解码再转（中文 stderr 不得乱码）。Linux 优先 UTF-8。二进制管道 v0 不承诺。
+
+---
+
+## 5. 进程列表
+
+Windows：当前用户可见进程，pid + name。Linux：`/proc` 或 `ps`，pid + comm/cmdline 截断。不要求系统服务全家桶。
+
+---
+
+## 6. 默认 denylist（策略在 Runtime）
+
+Windows：`%USERPROFILE%\.ssh`、凭据/DPAPI、浏览器 Profile、`\\.\`；`Format-Volume`、盘根递归删、`shutdown` / `Stop-Computer` / `Restart-Computer`。
+
+Linux：`~/.ssh`、`~/.gnupg`、`/etc/shadow`、`/dev/sd*`；`rm -rf /`、`mkfs`、`dd of=/dev`、`shutdown`/`reboot`、开头 `sudo`。
+
+错误码都是 `policy_deny`。
+
+---
+
+## 7. 安装形态
+
+Windows：单个 exe，当前用户即可；注意防火墙出站与杀软。Linux：amd64 二进制（deb 可选）；不依赖桌面；写明最低 glibc（如 Ubuntu 22.04+）。macOS：公证成本高，故 v0.1。
+
+---
+
+## 8. 验收（每 Must OS）
+
+1. ensure/start → 有 ID、默认 workspace 已打印、**无**授权码、可 online。
+2. `grant issue` 后，控制端只配三项即可流式 `whoami`/`echo`。
+3. 中文不乱码。
+4. workspace 外 write 失败。
+5. 一条高危 `policy_deny`。
+6. cancel `sleep` / `Start-Sleep`。
+7. 断网 offline，恢复后 online。
+8. Linux 无 DISPLAY：CLI 走完 peer / 流 / cancel。

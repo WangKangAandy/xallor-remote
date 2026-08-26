@@ -1,0 +1,68 @@
+# 客户端头：CLI / TUI / GUI
+
+SSOT：人怎么操作。命令前缀 `xallor-remote`。GUI 选型见 [decisions.md](decisions.md)。
+
+可视化 = 设备、授权、流式执行、审批；不是 VNC。v0 用 CLI，v0.1 用 TUI / Tauri GUI。
+
+---
+
+## 1. 原则
+
+人能做的，CLI 在 v0 必须能做。会话 = 流式终端。审批打在被控机本地。签发 grant 不走 MCP tool。
+
+---
+
+## 2. 信息架构
+
+| 屏 | v0 | 以后 |
+| --- | --- | --- |
+| 本机 | CLI Must | 用量、探针 |
+| 授权 | CLI Must | 多 grant、绑账号 |
+| Peer | CLI Must | 分组 |
+| 会话 | CLI Must | 分屏、文件树 |
+| 审批 | CLI/本机提示 Must | 推送 |
+| 审计 | Should | 导出 |
+| 账号 / 订阅 | 不做 | [platform.md](platform.md) |
+
+---
+
+## 3. CLI
+
+```text
+xallor-remote ensure
+xallor-remote start | stop | status
+xallor-remote grant issue | show | rotate
+xallor-remote inbound on | off
+xallor-remote revoke
+xallor-remote peer add --id … --grant …
+xallor-remote peer list
+xallor-remote exec --device … -- <command>
+xallor-remote mcp print-config
+xallor-remote mcp merge-config
+xallor-remote relay [--listen :8443 --data <dir>]
+xallor-remote reset --yes
+```
+
+`inbound off` 保留身份；`revoke` 销毁登记。尚无授权码时 `inbound on` 等同 `grant issue`。
+
+---
+
+## 4. TUI（v0.1）
+
+`xallor-remote tui`，做进同一 Go 二进制。SSH 可用。无 TTY 则退回 CLI；approval 无 UI 则 deny。
+
+---
+
+## 5. GUI（v0.1）
+
+**Tauri 2**，调本机 Runtime。5 分钟：看见 ID、issue、加 peer、结束前看到输出行。左栏：本机 / Peer / 会话 / 审批 / 审计 / 设置。不做键鼠。不做 Electron。
+
+---
+
+## 6. 环境默认
+
+| 环境 | v0 | 之后 |
+| --- | --- | --- |
+| Windows + Cursor | MCP + Runtime + CLI | Tauri GUI |
+| Linux 无 GUI | Runtime + CLI | TUI |
+| Linux 有桌面 | 同 Windows | GUI 可选 |
