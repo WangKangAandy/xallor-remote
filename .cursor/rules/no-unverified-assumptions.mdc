@@ -1,0 +1,34 @@
+---
+description: 禁止未经证实或用户确认的假设就改代码、动数据或改路径
+alwaysApply: true
+---
+
+# 禁止未证实假设
+
+**未经代码/文档/运行结果证实，或未经用户明确确认，不得把假设当作事实并据此实施变动**（改逻辑、写文件、复制资源、改 `.env`、删目录等）。
+
+## 必须先弄清再动手
+
+1. **路径语义**：用户给的是数据目录、workspace、Relay `--data`，还是仓库里的 `docs/`？读 [`docs/runtime.md`](docs/runtime.md) / [`docs/decisions.md`](docs/decisions.md)，**不要**擅自把 workspace 退回 `C:\` 或 `/`，也不要把 `device_secret` 写进 mcp.json。
+2. **产品边界**：签发 grant、开入站、控对面，以契约为准，**不要**用联调方便（如默认签发 grant、头直连 Relay、GUI 当中枢）代替产品决策。
+3. **破坏性操作**：覆盖用户磁盘、`reset`、改生产 Relay、删数据目录前，**先说明假设并征得确认**（或先用只读命令验证）。
+
+## 允许的做法
+
+- 用 `Read` / grep / 冒烟 / `git show` **验证**后再改。
+- 假设仅作**待确认假说**写进回复，并给出验证步骤；**不要**在假说未证实前写入实现。
+- 用户已确认的结论可直接执行，无需重复询问。
+
+## 本仓库反例（勿再犯）
+
+| 错误假设 | 后果 |
+|----------|------|
+| GUI 是控制面，MCP 应接到 GUI | 无头 Linux 无法被控；关窗口打断入站 |
+| 从 `architecture.md` 就能实现 Relay | 漏掉 inflight 终态、背压、断线；那不是实现合同 |
+| v0 需要 `seq` 才能叫实时 | TCP+FIFO 已保序；故意丢数据靠 `truncated` |
+| 停 B 的 drain 做背压 | 堵住同设备其它 exec |
+| 和 host-execution 共用一个 Runtime | 两套 transport 缠在一起 |
+
+## 关联
+
+索引：`AGENTS.md` 首要原则。产品红线：`ssot-and-product.mdc`。

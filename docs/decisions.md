@@ -1,6 +1,6 @@
 # 产品决策（已拍板）
 
-品牌与实现选型只在这里写全。范围仍见 [PRD.md](PRD.md)。
+品牌、实现选型、v0.6 安全契约只在这里写结论。范围仍见 [PRD.md](PRD.md)。
 
 ---
 
@@ -31,6 +31,7 @@
 - 客户端 **默认** `XALLOR_REMOTE_RELAY_URL=wss://relay.xallorremote.com`。
 - v0 官方 Relay：**无账号**，只靠 device secret / grant；不做计费、不做组织。可做连接数与流量的硬顶，超限 `quota_exceeded`。
 - **自托管一等公民**：`xallor-remote relay --listen :8443 --data <dir>`，改 URL 即切走。数据不锁死在云上。
+- Relay 行为契约（连接、inflight、流、cancel、断线、背压）只在 [dataplane.md](dataplane.md)，本文不重复。
 - 官方域名未上线前，dogfood 用自托管 URL；**产品默认仍按官方 hosted 写**，不要改回「v0 只能自托管」。
 - v1 才在 hosted 上加账号、设备清单、订阅。纯 grant 的 mcp.json **永久允许**。
 
@@ -38,7 +39,7 @@
 
 ## 3. 本机 IPC
 
-**拍板：按操作系统用该平台惯用本地 IPC，产品层同一套 API，禁止对 localhost 开一个随便端口。**
+**拍板：按操作系统用该平台惯用本地 IPC，产品层同一套 API，禁止对 localhost 开一个随便端口。** 报文见 [ipc.md](ipc.md)。
 
 | OS | 机制 |
 | --- | --- |
@@ -61,7 +62,7 @@
 | MCP 头 | **TypeScript**（`xallor-remote-mcp`） | Cursor 生态、ensure 时拉起 Go Runtime |
 | GUI v0.1 | **Tauri 2** | 小体积、调本机 Runtime；不做 Electron 远控壳 |
 
-TUI 做进同一 Go 二进制（`xallor-remote tui`），不另发一套 Node TUI。
+TUI 做进同一 Go 二进制（`xallor-remote tui`），不另发一套 Node TUI。库、发行、复用清单见 [stack.md](stack.md)。头与 Runtime 关系见 [heads.md](heads.md)。
 
 ---
 
@@ -76,3 +77,17 @@ TUI 做进同一 Go 二进制（`xallor-remote tui`），不另发一套 Node TU
 - `--workspace` 或 `config.json` 可改；改完只影响后续 invoke。
 - 目录被删：重建默认或报 `workspace_missing`，不要退回用户主目录根。
 - 路径穿越仍 `policy_deny`。
+
+---
+
+## 6. 安全契约（v0.6）
+
+细节在 [credentials.md](credentials.md) / [protocol.md](protocol.md) / [runtime.md](runtime.md) / [relay.md](relay.md)。这里只锁结论：
+
+1. Grant = bearer capability，不绑控制端。
+2. rotate/revoke/inbound **仅被控机本机**，经 device 连接。
+3. 审计不还原完整命令；只存 preview + digest。
+4. Policy 是 workspace + denylist 减伤，不是命令沙箱；无头审批 → deny。
+5. write：整文件、1 MiB、原子覆盖。
+6. Hosted Relay 看得见飞行载荷；不落盘；有每 IP 预算。
+7. cancel 只能打本 client 连接上的 exec_id。

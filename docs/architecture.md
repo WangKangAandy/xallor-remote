@@ -1,8 +1,8 @@
 # 端到端：一次任务怎么走
 
-SSOT：时序与「谁连谁」。消息与错误码见 [protocol.md](protocol.md)。落盘细表见 [relay.md](relay.md)。安装见 [model.md](model.md)。
+SSOT：时序与「谁连谁」的产品路径。**不要从本文实现 Relay。** 转发、inflight、流、cancel、断线、背压只在 [dataplane.md](dataplane.md)。消息码见 [protocol.md](protocol.md)。落盘见 [relay.md](relay.md)。安装见 [model.md](model.md)。
 
-一次调用里的「本机 / 目标机」是方向，不是两种安装包。
+一次调用里的「本机 / 目标机」是方向，不是两种安装包。四个头同级连 Runtime，见 [heads.md](heads.md)。
 
 ---
 
@@ -55,13 +55,26 @@ Agent 或人
  │  结束       │◄────────────────────│                       │
 ```
 
-校验顺序：头参数 → Relay（grant、online、inbound、背压）→ 目标策略 → 执行。失败即停，code 见 [protocol.md](protocol.md)。
-
-断线：v0 不重放 stdout；inflight 标 `relay_error` 或 `cancelled`。目标断线时杀掉无主子进程。
+校验顺序：头参数 → Relay（grant、online、inbound、并发）→ 目标策略 → 执行。失败即停。**逐步转发、inflight、终态**见 [dataplane.md](dataplane.md)，此处不重复。
 
 ---
 
-## 4. 存什么（原则）
+## 4. 改授权时序
+
+不走 client / invoke。持 grant 的对端发 `grant_rotate` / `revoke` / `inbound_set` → Relay 拒绝。
+
+```text
+人 / CLI（被控本机）
+    → IPC → 本机 Runtime
+    → device 连接：grant_rotate | inbound_set | revoke
+    → Relay 换哈希 / 改 inbound / 销登记并踢线
+```
+
+`rotate` 只换 grant，`device_id` 不变。`revoke` 销 Relay 登记。`reset` = 本机清空 + `revoke`。细节见 [credentials.md](credentials.md)。
+
+---
+
+## 5. 存什么（原则）
 
 载荷转发，元数据落盘。细表只在 [relay.md](relay.md)。
 
@@ -74,6 +87,6 @@ Agent 或人
 
 ---
 
-## 5. 部署
+## 6. 部署
 
 默认连官方 hosted Relay。自托管：`xallor-remote relay`。公网 WSS；localhost 可用 WS。目标机连的是 Relay，不是 Cursor 所在机器。v0 hosted 无账号。见 [decisions.md](decisions.md)。

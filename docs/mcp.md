@@ -1,12 +1,12 @@
 # MCP 头
 
-SSOT：mcp 配置与 tools。ensure 见 [model.md](model.md)。环境变量名见 [decisions.md](decisions.md)。
+SSOT：mcp 配置与 tools。ensure 见 [ipc.md](ipc.md) / [model.md](model.md)。环境变量名见 [decisions.md](decisions.md)。官方 SDK 见 [stack.md](stack.md)。
 
 ---
 
 ## 1. 它是什么
 
-Cursor 等 spawn 的短驻 stdio 进程：`npx xallor-remote-mcp`。ensure Go Runtime；经 IPC 发任务；不持有到 Relay 的长期 WSS；不签发 grant。
+Cursor 等 spawn 的短驻 stdio 进程：`npx xallor-remote-mcp`。ensure Go Runtime；经 IPC 发任务；不持有到 Relay 的长期 WSS；不签发、不轮换、不吊销 grant，也不开关入站。用官方 MCP SDK，不要自实现协议。
 
 ---
 
@@ -48,10 +48,12 @@ Cursor 等 spawn 的短驻 stdio 进程：`npx xallor-remote-mcp`。ensure Go Ru
 | `remote.read` / `remote.write` | 路径原样传递 |
 | `remote.processes` | 只读 |
 
-不提供签发 grant / 开入站。`exec` 结果含 `exit_code`、`duration_ms`、`truncated`、`exec_id`。
+不提供签发 / 轮换 / 吊销 grant、不开入站。`remote.exec_cancel` 只能取消本 MCP 会话经 Runtime 发起的 exec（最终仍受 protocol：按 client 连接隔离）。
+
+`write`：整文件覆盖、≤1 MiB、原子替换，见 [protocol.md](protocol.md) / [runtime.md](runtime.md)。`exec` 结果含 `exit_code`、`duration_ms`、`truncated`、`exec_id`。
 
 ---
 
 ## 4. 流式
 
-内部事件见 [protocol.md](protocol.md)。客户端支持 notifications 则边推；否则边收边攒——**Runtime↔Relay 必须是流**。
+内部事件见 [protocol.md](protocol.md)。转发过程见 [dataplane.md](dataplane.md)。客户端支持 notifications 则边推；否则头上边收边攒——**Runtime↔Relay 必须按数据平面逐帧流**，禁止等 B `run()` 完再整包。

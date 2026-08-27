@@ -1,0 +1,39 @@
+---
+description: 代码改动后代理须自动构建/测试使变更生效，禁止只提示用户手动执行
+alwaysApply: true
+---
+
+# 改动后自动构建与测试（代理必做）
+
+本仓库在 **Windows**（PowerShell）下开发。凡改动**需要构建或测试才能确认生效**的代码，在**本对话该批改动结束前**，代理须**自行执行**并确认通过，**不得**在回复里写「请执行 go test」却自己不跑。
+
+## 禁止
+
+- 只写「需 `go test` / `npm test`」**不执行**
+- 只跑与改动无关的命令就收工
+- 把「用户本机 Docker 没开」当成命令写错（先 `docker info`，见 `AGENTS.md`）
+
+## 改动范围 → 自动执行（批改动结束时）
+
+| 若本批改动涉及 | 代理必须执行 |
+|----------------|--------------|
+| `internal/`、`cmd/` 等 Go | `go test ./...`（包未就绪则说明缺什么，不要假装过了） |
+| `packages/mcp/` | 该包的 `npm test` / `npm run build`（以 `package.json` 为准） |
+| `apps/gui/` | 该前端的 typecheck 或 Tauri 构建（以仓库脚本为准） |
+| 仅 `docs/`、`README.md`、`AGENTS.md`、`.cursor/rules/` | **可跳过构建** |
+
+Web 应用若以后有用户可见 UI 改动，须按用户规则用浏览器或最接近的替代手段验证行为，不只截一张图。
+
+## 例外（可跳过）
+
+- 仅改文档 / 规则文案、无运行时代码
+- 用户明确说「不要 build / 不要测试」
+- 仓库尚无对应模块（不要发明不存在的 `docker compose` 栈）
+
+## Windows
+
+NTFS 大小写不敏感时，勿在同一目录放仅大小写不同的两个源文件，否则 Go/Vite 可能解析错误。
+
+## 与 AGENTS.md
+
+不替代 **git commit** 约定；本规则管 **构建 + 测试**。生产部署见 `protect-production-environment.mdc`。

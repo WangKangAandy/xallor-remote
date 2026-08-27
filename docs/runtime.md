@@ -1,6 +1,6 @@
 # Runtime：被控与本地枢纽
 
-SSOT：本机执行、策略、workspace、本地数据。CLI 命令表见 [clients.md](clients.md)。OS 差异见 [os.md](os.md)。进程关系见 [model.md](model.md)。
+SSOT：本机执行、策略、workspace、本地数据。CLI 见 [clients.md](clients.md)。denylist 见 [os.md](os.md)。授权谁能改见 [credentials.md](credentials.md)。
 
 ---
 
@@ -12,9 +12,10 @@ SSOT：本机执行、策略、workspace、本地数据。CLI 命令表见 [clie
 - 身份；`grant issue` 前入站关
 - 收 invoke → 策略 → 执行 → 回推事件
 - cancel；断线杀无主进程
-- 对本机头提供：identity、peers、审批、代发 `hello_client`
+- 对本机头提供：identity、peers、审批、**仅本机**的 grant/inbound/revoke
+- 代发 `hello_client`（控别人）
 
-不做：MCP stdio 本身、屏幕采集、经 MCP 签发 grant。
+不做：MCP stdio、屏幕采集、经 MCP 签发或吊销 grant。不做命令语义沙箱（容器 / 受限 token）。
 
 ---
 
@@ -22,19 +23,19 @@ SSOT：本机执行、策略、workspace、本地数据。CLI 命令表见 [clie
 
 ```text
 Windows: %APPDATA%\XallorRemote\
-Linux:   ~/.config/xallor-remote/
+Linux:   ~/.config/xallor-remote\
 ```
 
-IPC 路径见 [decisions.md](decisions.md)。
+IPC 报文见 [ipc.md](ipc.md)。头关系见 [heads.md](heads.md)。
 
 | 文件 | 内容 |
 | --- | --- |
 | `identity.json` | device_id |
 | `device_secret` | 仅当前用户可读 |
 | `grant` | 仅 issue 之后；明文只为再显示 |
-| `peers.json` | 对方 id + grant（控制名单） |
+| `peers.json` | 对方 id + grant（**密钥库**） |
 | `config.json` | relay、workspace、shell |
-| `policy.json` | allow / deny / approval |
+| `policy.json` | capability 开关、approval 列表（可选） |
 
 ---
 
@@ -53,31 +54,61 @@ on invoke: 策略 → exec|read|write|processes|info|cancel
 on disconnect: 退避重连；不恢复旧子进程
 ```
 
+改授权的消息只从本机 IPC 进来，再由本进程用 **device 连接**发给 Relay。
+
 ---
 
 ## 5. exec
 
-禁止 `run()` 完再整包发送。必须 Popen，按行/块推 `stdout`/`stderr`，最后 `exit`。
+禁止 `run()` 完再整包发送。必须 Popen，按行/块推 `stdout`/`stderr`，最后一条 `exit`。管道要持续读。帧大小、截断、cancel、断线杀进程见 [dataplane.md](dataplane.md)。
 
 - Windows：Job Object 杀树。Linux：process group。
 - 字节转 UTF-8 再上送，见 [os.md](os.md)。
 - 继承用户环境；不接受任意远程 env。
-- v0 无交互 stdin。
+- **v0 无交互 stdin。** 不要做成 PTY。
 - 并发见 [protocol.md](protocol.md)。
 
 ---
 
-## 6. 文件 / 进程 / info
+## 6. read / write / 进程 / info
 
-read：head/tail 或区间；v0 可拒二进制。write：覆盖。processes：当前用户可见即可。info：os/arch/hostname/version/workspace；可选探测 docker / nvidia-smi / git（false 即可，不要整次失败）。
+**read：** workspace 内；head/tail 或区间；默认当 UTF-8 文本；明显二进制 → 拒绝或 `too_large` 策略（v0 可直接拒绝）。上限见 protocol。
+
+**write（写死）：**
+
+- 仅 workspace 内
+- **整文件覆盖**；不 append、不 patch、不部分写
+- 先写同目录临时文件再替换（原子替换）；失败则旧文件保留
+- 上限 1 MiB，超则 `too_large`，磁盘上不留半份新内容
+- 并发写同一路径：后完成的替换胜出，不提供锁
+
+**processes：** 当前用户可见即可。**info：** os/arch/hostname/version/workspace；可选探测 docker / nvidia-smi / git（false 即可）。
 
 ---
 
-## 7. Capability 与策略
+## 7. 策略合同（诚实模型）
 
-v0 名字：
+v0 **不**解析「这是 `npm install` 还是 `rm`」来当沙箱。命令分类器一定会被绕过。
 
-| Capability | 对应 op |
+**grant 持有者 ≈ 这台机器上的当前用户，作用域缩在 workspace + denylist。** Policy 是减伤，不是隔离。
+
+判定顺序（任一拒绝即停）：
+
+```text
+1. Relay 已校验 grant / inbound（本步不再验码）
+2. 该 op 的 capability 已打开；未知 capability → deny
+3. 文件类：规范化后的路径必须在 workspace 内
+4. 命中 [os.md](os.md) denylist → policy_deny
+5. 命中「需审批」规则：
+     有 TTY 或本机 UI → 等待；超时 → approval_timeout
+     无 TTY 且无 UI（典型无头 Linux）→ **直接 policy_deny**
+     不要挂死等一个不存在的人
+6. 否则 allow
+```
+
+v0 capability：
+
+| Capability | op |
 | --- | --- |
 | `device.inventory` | info |
 | `shell` | exec / cancel |
@@ -85,7 +116,7 @@ v0 名字：
 | `process.list` | processes |
 | `system.info` | info 内 |
 
-未知 capability 默认拒绝。高危与凭据路径 denylist 见 [os.md](os.md)。sudo / 提权默认 deny 或 approval。审批在 **被控机** 本地；超时拒绝；无 TTY 且无 UI 则 approval 直接 deny。
+默认：上述开启；不默认 sudo / 提权。无头机不要指望审批流，把 denylist 当主防线。
 
 Relay 已鉴权不能替代本步。
 
@@ -93,4 +124,4 @@ Relay 已鉴权不能替代本步。
 
 ## 8. 卸载
 
-断开；建议 `revoke`；删数据目录。只删二进制会留下 identity，重装抢同一 ID。
+断开；本机 `revoke` 通知 Relay；删数据目录。只删二进制会留下 identity，重装抢同一 ID。

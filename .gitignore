@@ -10,4 +10,6 @@ Thumbs.db
 .vscode/
 *.pem
 *.key
-credentials.json
+*.exe
+/xallor-remote
+bin/

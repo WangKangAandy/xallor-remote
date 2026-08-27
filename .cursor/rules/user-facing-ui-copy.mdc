@@ -1,0 +1,41 @@
+---
+description: UI/CLI/MCP 文案面向终端用户，不写内部说明或开发备注
+alwaysApply: true
+---
+
+# 用户向文案
+
+界面、CLI 打印、MCP 返回给模型旁的**人话**，是给**最终用户**看的，不是给开发/测试看的说明，也不是产品说明书。
+
+## 原则
+
+- **只写用户需要知道的事**：如何操作、当前状态、错误原因与下一步（简短、可执行）。错误码仍按 [`docs/protocol.md`](docs/protocol.md) 机器可读返回，人话附一句。
+- **不要复述界面已经表达的事**。自问：删掉这句，用户是否仍知道当前状态和下一步？若是，删掉。
+- **不要写进 UI / CLI 默认输出**：
+  - 实现细节（WSS vs IPC、goroutine、SQLite、exec_id 路由）
+  - 联调/环境提示（「开发环境见日志」「与 protocol §3 一致」）
+  - 产品排期、架构、deprecated 说明
+- **内部说明**放在：代码注释、`docs/`、PR 描述、`.cursor/rules/`。
+
+## 示例
+
+```text
+❌ BAD — 面向开发者
+relay_error: inflight map deleted after client_conn close (see dataplane §7)
+
+✅ GOOD
+目标连接已断开，请稍后重试。
+```
+
+```text
+❌ BAD
+授权码已生成（grant 为 bearer capability，不绑定控制端 device_id）
+
+✅ GOOD
+授权码: xr_grant_…    ← 把这一行给对方
+```
+
+**可以写**（界面本身还没说清楚时）：
+
+- 错误 + 下一步：「授权码无效或已吊销，请在对方电脑上重新签发。」
+- 操作有**非显而易见**后果时的一句：`reset` 会注销这台设备在中转上的身份

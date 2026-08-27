@@ -1,10 +1,10 @@
-# PRD v0.5 — XallorRemote
+# PRD v0.8 — XallorRemote
 
 | 字段 | 内容 |
 | --- | --- |
-| 状态 | 产品范围。读法见 [README.md](README.md)；名字与选型见 [decisions.md](decisions.md) |
+| 状态 | 产品范围。读法见 [README.md](README.md)；头关系见 [heads.md](heads.md)；Relay 转发见 [dataplane.md](dataplane.md)；栈见 [stack.md](stack.md) |
 | 产品名 | **XallorRemote** |
-| 日期 | 2026-08-26 |
+| 日期 | 2026-08-27 |
 
 ---
 
@@ -28,15 +28,16 @@ Agent 能调 API，不能安全地用用户自己的电脑。SSH MCP 要端口�
 
 1. 主路径：ID + 授权码 → 任务 → 流式结果。
 2. 一个 Node，多个头；禁止控制端专用包。
-3. 安装幂等；身份直到 `xallor-remote reset` / `revoke` 才死。
+3. 安装幂等；身份直到本机 `revoke` / `reset` 才死（`rotate` 只换 grant）。
 4. 双向 = 两份 grant；入站默认关；首次启动不签发授权码。
 5. 控制头经本机 Runtime 再出站；Cursor 关 MCP 不影响入站。
 6. 流式默认（含 GUI 会话屏）。
 7. 设备只出站；Relay 转发载荷、只存元数据。
-8. 签发授权 / 开入站只走人或 CLI，不走 MCP tool。
-9. 账号与订阅是后一层，见 [platform.md](platform.md)。
-10. OS 差异只写在 [os.md](os.md)。
-11. 默认走官方 hosted Relay，自托管随时可换，见 [decisions.md](decisions.md)。
+8. 签发、轮换、吊销、开入站只走**被控机本机**人或 CLI，不走 MCP，也不走持 grant 的对端。
+9. Grant 是可复制的 bearer capability，不绑定控制端身份；泄漏则本机 rotate。
+10. 账号与订阅是后一层，见 [platform.md](platform.md)。
+11. OS 差异只写在 [os.md](os.md)。
+12. 默认走官方 hosted Relay，自托管随时可换；Relay 看得见飞行载荷、v0 不 E2E，见 [decisions.md](decisions.md) / [relay.md](relay.md)。
 
 ---
 
@@ -44,10 +45,10 @@ Agent 能调 API，不能安全地用用户自己的电脑。SSH MCP 要端口�
 
 ### v0 Must
 
-- 通用 MCP 包 `xallor-remote-mcp` + 幂等 ensure Go Runtime
+- 通用 MCP 包 `xallor-remote-mcp` + 幂等 ensure Go Runtime（MCP 只连 IPC，不连 GUI）
 - Windows + Linux Runtime：身份、出站、入站默认关、`grant issue`、流式 exec、默认 workspace、进程、本地策略
 - CLI 覆盖人侧全部操作
-- Relay：官方 hosted 默认 URL + `xallor-remote relay` 自托管
+- Relay：官方 hosted 默认 URL + `xallor-remote relay` 自托管；按 [dataplane.md](dataplane.md) 做鉴权路由与流式转发
 - 两台机器互换 grant 后都能 exec（可经官方 Relay，无需彼此公网 IP）
 
 ### v0.1
@@ -60,27 +61,44 @@ Agent 能调 API，不能安全地用用户自己的电脑。SSH MCP 要端口�
 
 ### 不做（v0–v1 默认）
 
-远程桌面 / 键鼠 / WebRTC / P2P / 目录同步 / K8s / Computer Use / 支付与组织 RBAC / MCP 签发 grant / 浏览器当第三条执行通道 / 短配对码 / Electron 壳。
+远程桌面 / 键鼠 / WebRTC / P2P / 目录同步 / K8s / Computer Use / 支付与组织 RBAC / MCP 签发或吊销 grant / 浏览器当第三条执行通道 / 短配对码 / Electron 壳 / PTY 与交互 stdin / 命令分类器当沙箱 / 绑定控制端的 grant / 载荷 E2E。
 
 ---
 
 ## 5. 成功标准
 
-双 OS 各跑一遍才算过。细节在 [os.md](os.md)。
+双 OS 都过才算 v0。清单按四类，细节命令在 [os.md](os.md)。
 
-1. 只装 MCP：Runtime 被 ensure 出来，**没有**授权码、入站仍关；默认 workspace 已创建并打印。
-2. 再装一次 / 再开 Cursor：同一 `device_id`，仍一个 Runtime。
-3. `xallor-remote grant issue` 后，对方只配 ID+授权码（默认官方 Relay）即可流式 exec。
-4. 反向第二份 grant 同样成立。
-5. 高危 `policy_deny` 或审批超时拒绝；rotate / revoke 立即失效；断网 `device_offline`。
-6. 无 DISPLAY 的 Linux：v0 用 CLI 完成 peer / 流式 / cancel。
-7. 改 `XALLOR_REMOTE_RELAY_URL` 指向自托管 Relay，同样能跑通。
+**Identity：** install / 再开 Cursor / 升级后 `device_id` 与 secret 不变；`reset` 才变；默认 workspace 打印且无授权码、入站关。
 
-v0.1 另加：TUI 或 GUI 在命令结束前能看到行。
+**Transport：** 断网 `device_offline`、恢复 online；Relay 重启后设备重连；官方 URL 与自托管 URL 都能跑通。
+
+**Authorization：** `grant issue` 后对端仅凭 ID+码可 exec；错误 grant → `unauthorized`；入站关 → `inbound_disabled`；**对端 MCP 不能 rotate/revoke**；本机 rotate 后旧码立刻失效；反向第二份 grant 独立。
+
+**Execution：** stdout/stderr 流式（结束前至少两帧可见）；非零只走 `exit`；timeout / cancel（只能 cancel 自己的 exec，终态 `exit.status`）；workspace 外 write `policy_deny`；超大 write `too_large`；高危 denylist `policy_deny`；无头机审批类直接 deny；断线杀无主进程；`yes` 类洪水 `truncated=true` 仍有 `exit`；Relay 重启 inflight → `relay_error`。
+
+无 DISPLAY 的 Linux：v0 用 CLI 完成 peer / 流式 / cancel。v0.1 另加 TUI/GUI 在结束前看到行。
 
 ---
 
-## 6. 路线图
+## 6. 数据平面（核心）
+
+产品发动机是 **A Runtime ↔ Relay ↔ B Runtime** 的 WSS 闭环，不是 MCP 本身。
+
+Relay：**有鉴权的实时消息路由器**——device 连接、grant 校验、按 `exec_id` 转发、生命周期错误。不执行、不解释命令、不持久化 stdout。
+
+六件事一次钉死（全文只在 [dataplane.md](dataplane.md)）：
+
+1. 连接：两条出站长连接；v0 一条 client 只绑一个目标。
+2. 请求：`invoke(exec_id)`；Relay 校验后登记 inflight 再转给 B。
+3. 路由：`inflight[exec_id] → client_conn + device_id`。
+4. 流：B Popen 推 `stdout`/`stderr`/`exit`；Relay 原样转发。
+5. 取消：仅本 client 的 inflight → B 杀树 → `exit.status=cancelled`。
+6. 断线/背压：不恢复旧 exec；洪水则 `truncated`，终态仍要送达。
+
+---
+
+## 7. 路线图
 
 | 阶段 | 内容 |
 | --- | --- |
@@ -93,6 +111,6 @@ v0.1 另加：TUI 或 GUI 在命令结束前能看到行。
 
 ---
 
-## 7. 和 host-execution-mcp
+## 8. 和 host-execution-mcp
 
-互补，不是替代。那边是 SSH / 跳板 / k8s；这边是个人设备 + 出站中转。Capability / 审计语义应对齐，Transport 不同。不要在 v0 重做异步大文件 copy。
+互补，不是替代。那边是 SSH / 跳板 / k8s；这边是个人设备 + 出站中转。Capability / 审计语义应对齐，**v0 不要为了对齐去改 host-execution 的 tool 名，也不要把两套 transport 揉成一个 Runtime。** 不要在 v0 重做异步大文件 copy。

@@ -1,6 +1,6 @@
 # 产品模型：一个 Node
 
-SSOT：安装形态、幂等、双向、本机进程。选型见 [decisions.md](decisions.md)。
+SSOT：安装形态、幂等、双向、本机进程。头之间谁听谁见 [heads.md](heads.md)。选型见 [decisions.md](decisions.md)。
 
 ---
 
@@ -11,11 +11,12 @@ SSOT：安装形态、幂等、双向、本机进程。选型见 [decisions.md](
 ```text
 本机 Runtime（Go，长驻，一个）
   ├── 数据：identity、inbound、issued grant、peers、policy、workspace
-  ├── IPC：Windows named pipe / Unix socket（见 decisions）
+  ├── IPC：见 [ipc.md](ipc.md) / [decisions.md](decisions.md)
   ├── 连接 A：hello_device → Relay
   └── 连接 B：hello_client → Relay
         ▲
    MCP（TS 短驻）   CLI / TUI / GUI
+（四个头同级，都只连 IPC；GUI 不是中枢）
 ```
 
 Relay 默认官方 hosted（`wss://relay.xallorremote.com`），可改 URL 自托管。
@@ -36,7 +37,7 @@ Relay 默认官方 hosted（`wss://relay.xallorremote.com`），可改 URL 自�
 | 用户改过 workspace / 策略 | 保留 | 恢复出厂 |
 | mcp.json 已有本 server | 不重复插入 | 每次保存再追加一条 |
 
-破坏性只有 `xallor-remote reset --yes`。
+身份破坏：`xallor-remote revoke` 销 Relay 登记；`reset --yes` = 本机清空 + revoke。`grant rotate` 只换码，不换 `device_id`。
 
 ---
 
@@ -48,6 +49,8 @@ A 执行 grant issue  →  B peer add A  →  B 控 A
 ```
 
 两份 grant。入站默认关。ensure 后 Runtime 保持 `hello_device`（可 online 且 inbound_disabled）。
+
+Grant 是 bearer：多 Cursor / CLI 共享被控机这一份码，不绑控制端身份。签发、rotate、inbound、revoke **只在被控本机**经 IPC；MCP 和对端不能改授权。见 [credentials.md](credentials.md)。
 
 无桌面 Linux：`xallor-remote peer add` + `exec`，或本机也跑 MCP。
 

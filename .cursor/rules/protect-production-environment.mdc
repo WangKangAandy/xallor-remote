@@ -1,0 +1,39 @@
+---
+description: 提交与生产环境变更必须慎重，禁止破坏官方 Relay/线上配置与数据
+alwaysApply: true
+---
+
+# 保护生产环境（铁律）
+
+**官方 Relay（`relay.xallorremote.com` 及之后的生产主机）的可用性与配置优先于联调便利。** 提交代码、上传部署、改远端 `.env`、重建服务前必须慎重；不确定就先只读排查并征得用户确认。
+
+## 本地 vs 生产（勿混）
+
+| 范围 | 含义 | 代理默认可做 |
+|------|------|----------------|
+| **本地** | 本机 `go test`、自托管 `xallor-remote relay`、本机 Runtime | 按 `post-code-change-build.mdc` 构建与测试 |
+| **生产** | 官方 Relay、生产 `.env`、生产 SQLite/磁盘、域名证书 | **默认只读**；写入/部署须用户明确授权 |
+
+`post-code-change-build` **只覆盖本机**，**不**授权改生产。
+
+## 禁止（历史教训，通用）
+
+1. **用本机开发 `.env` 整文件覆盖**生产配置（会带回 `development`、本机路径、关掉 TLS/SMTP 等）。
+2. **上传/解压代码时覆盖远端密钥与运行配置**（`.env`、证书、数据目录）而不先备份、不 diff。
+3. **未确认就**删库、清空 Relay `--data`、改域名证书。
+4. **`tar`/`rsync` 打包源码时未排除 `.env*`**（已在其它项目发过事故）：本机密钥打进包，解压覆盖生产。部署必须 **跳过 `.env*`、`device_secret`、`grant`、`peers.json`**。
+5. 在用户只说「看下生产 / 查日志」时，擅自改配置或发版。
+6. 把 grant 明文、`device_secret`、npm token 写进 git 或聊天记录。
+
+## 必须这样做
+
+1. **先只读**：进程、日志、env **键名**（脱敏）、health；再决定是否改。
+2. **改生产前**：说明将改什么、风险、回滚方式；**用户明确同意**后再执行。
+3. **改 `.env`**：只增补/替换**相关键**；先带时间戳备份；**禁止**整文件用本地副本覆盖。
+4. **Git 提交**：仍遵守「未经用户明确要求不 commit」；勿把密钥写进仓库。`.env.example` **不等于**已在生产生效。
+
+## 关联
+
+- 本地构建测试：`.cursor/rules/post-code-change-build.mdc`
+- 未证实不改：`.cursor/rules/no-unverified-assumptions.mdc`
+- 总述：`AGENTS.md` 首要原则

@@ -1,0 +1,17 @@
+---
+description: 产品 SSOT 与架构红线；实现 Relay 从 dataplane 进
+alwaysApply: true
+---
+
+# 产品口径只改一份
+
+产品规格索引：[`docs/README.md`](docs/README.md)。铁律正文在 `.cursor/rules/`；`AGENTS.md` 只作索引，不要把同一段再抄进 `docs/`。
+
+## 必守
+
+1. **中枢是 Runtime**，四个头（MCP / CLI / TUI / GUI）同级连本机 IPC。禁止 GUI 当控制面、MCP 去接 GUI、头直接连 Relay。见 [`docs/heads.md`](docs/heads.md)。
+2. **实现数据平面从 [`docs/dataplane.md`](docs/dataplane.md) 进。** [`docs/architecture.md`](docs/architecture.md) 只回答「谁连谁」，不是 Relay 状态机。
+3. **消息字段 / 错误码 / 数字上限**只在 [`docs/protocol.md`](docs/protocol.md) 改。
+4. **不要**为评审再引入 `seq`、协议级 `accepted/dispatched/running`、停 drain 当背压。已拒绝理由在 dataplane。
+5. **不要**把 `host-execution-mcp` 的 SSH/k8s transport 揉进本 Runtime；v0 不对齐去改那边的 tool 名。
+6. 库与复用只在 [`docs/stack.md`](docs/stack.md) 改；能依赖社区实现就不要自写 MCP/WSS/TUI 框架。

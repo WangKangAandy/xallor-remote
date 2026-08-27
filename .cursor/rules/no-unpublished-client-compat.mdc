@@ -1,0 +1,23 @@
+---
+description: 产品未正式上线；契约一次切到长期形状，不为未发布客户端保留兼容层
+alwaysApply: true
+---
+
+# 未上线：不为旧实现做兼容
+
+**XallorRemote 尚未正式对用户发布。** 改 WSS/IPC 信封、错误码、字段名、tool 参数时，直接落到 [`docs/protocol.md`](docs/protocol.md) / [`docs/ipc.md`](docs/ipc.md) 的长期契约，**不要**为本机曾经跑过的旧二进制或旧 mcp.json 保留过渡。
+
+## 禁止
+
+- 双写（新旧字段并存「先给旧的再给新的」）
+- `foo ?? legacyFoo`、同时认 `args` 与 `payload` 等「旧包还能读」分支
+- 以「已装的 Runtime 会坏」「禁止只改一端」为由推迟切到长期形状
+- 把未发布时的过渡写法写进协议当永久例外
+- 为对齐 `host-execution-mcp` 去改已经冻结的 `remote.*` tool 名
+
+生产 Relay 的 **`.env` / 数据 / 可用性** 仍按 `protect-production-environment.mdc`：那是运维，不是客户端协议兼容。
+
+## 允许
+
+- 一次改 Runtime + MCP + 文档
+- 告诉用户升级/重启 Runtime（本机旧进程会对不上，这是预期）

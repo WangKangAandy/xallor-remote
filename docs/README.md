@@ -2,7 +2,9 @@
 
 本目录是 **XallorRemote** 的产品定义。从这份文件进；每件事只在一个文件里写全。
 
-**版本：** v0.5（2026-08-26）。品牌定为 XallorRemote；其余未决已按产品方向拍板，见 [decisions.md](decisions.md)。
+代理铁律正文在 [`.cursor/rules/`](../.cursor/rules/)；索引 [../AGENTS.md](../AGENTS.md)。不要把同一铁律再抄进本目录。
+
+**实现 Relay / Runtime 流式：从 [dataplane.md](dataplane.md) 进，不要从 architecture 推断状态机。**
 
 ---
 
@@ -11,17 +13,21 @@
 | 顺序 | 文件 | 只回答 |
 | --- | --- | --- |
 | 1 | [PRD.md](PRD.md) | 做什么、不做什么、何时算做成 |
-| 2 | [decisions.md](decisions.md) | 品牌、Relay、IPC、技术栈、workspace |
+| 2 | [decisions.md](decisions.md) | 品牌、Relay、IPC、技术栈、workspace、安全契约 |
 | 3 | [model.md](model.md) | 一台机器是什么、怎么装、怎么双向 |
-| 4 | [credentials.md](credentials.md) | ID / 授权码 / 设备密钥 |
-| 5 | [architecture.md](architecture.md) | 一次任务怎么走 |
-| 6 | [protocol.md](protocol.md) | 消息与错误码 |
-| 7 | [runtime.md](runtime.md) | 被控侧怎么执行 |
-| 8 | [mcp.md](mcp.md) | Agent 侧 MCP |
-| 9 | [relay.md](relay.md) | 中转与落盘 |
-| 10 | [clients.md](clients.md) | GUI / TUI / CLI |
-| 11 | [os.md](os.md) | Windows / Linux 差异 |
-| 12 | [platform.md](platform.md) | 以后的用户 / 设备 / 订阅 |
+| 4 | [heads.md](heads.md) | MCP / CLI / GUI 谁听谁（不是 GUI 中枢） |
+| 5 | [credentials.md](credentials.md) | ID / 授权码 / 设备密钥 |
+| 6 | [architecture.md](architecture.md) | 一次任务谁连谁 |
+| 7 | [dataplane.md](dataplane.md) | **Relay 如何把 exec 流式跑通（核心）** |
+| 8 | [ipc.md](ipc.md) | 头 ↔ Runtime 本机协议 |
+| 9 | [protocol.md](protocol.md) | WSS 消息与错误码 |
+| 10 | [runtime.md](runtime.md) | 被控侧怎么执行 |
+| 11 | [mcp.md](mcp.md) | Agent 侧 MCP |
+| 12 | [relay.md](relay.md) | 中转落盘与预算 |
+| 13 | [clients.md](clients.md) | 人侧命令与屏 |
+| 14 | [stack.md](stack.md) | 语言、库、发行、不要造的轮子 |
+| 15 | [os.md](os.md) | Windows / Linux 差异 |
+| 16 | [platform.md](platform.md) | 以后的用户 / 设备 / 订阅 |
 
 ---
 
@@ -49,15 +55,19 @@ CLI：`xallor-remote`。路径与前缀见 [decisions.md](decisions.md)。`platf
 | 主题 | 只在这里写全 |
 | --- | --- |
 | 范围、成功标准 | [PRD.md](PRD.md) |
-| 品牌与选型 | [decisions.md](decisions.md) |
+| 品牌、选型、安全契约 | [decisions.md](decisions.md) |
 | 一个包、幂等、双向 | [model.md](model.md) |
+| **头与 Runtime 关系** | [heads.md](heads.md) |
 | 三套秘密 | [credentials.md](credentials.md) |
-| 时序 | [architecture.md](architecture.md) |
+| 时序（产品路径） | [architecture.md](architecture.md) |
+| **exec 数据平面 / Relay 怎么转发** | [dataplane.md](dataplane.md) |
+| **本机 IPC** | [ipc.md](ipc.md) |
 | 消息与错误码 | [protocol.md](protocol.md) |
 | 执行、策略、workspace | [runtime.md](runtime.md) |
 | mcp.json 与 tools | [mcp.md](mcp.md) |
 | 落盘 | [relay.md](relay.md) |
 | CLI/GUI/TUI | [clients.md](clients.md) |
+| **栈与复用** | [stack.md](stack.md) |
 | Windows/Linux | [os.md](os.md) |
 | Account / 订阅 | [platform.md](platform.md) |
 
@@ -75,4 +85,8 @@ CLI：`xallor-remote`。路径与前缀见 [decisions.md](decisions.md)。`platf
 4. Runtime/Relay/CLI/TUI = Go；MCP = TypeScript；GUI = Tauri 2。
 5. 默认 workspace 为用户目录下 `XallorRemote/workspace`，启动打印，禁止静默用盘符根。
 
-细节只在 [decisions.md](decisions.md)。
+安全（v0.6）：Grant 为 bearer；revoke 仅本机；审计不还原命令全文；write 原子+上限；Relay 可见飞行载荷但不落盘。见 [decisions.md](decisions.md) §6。
+
+数据平面（v0.7）：Relay = 鉴权实时路由器；`exec_id` 串起 invoke→stdout/exit；一条 client 绑一个目标；终态唯一；洪水则 truncated。见 [dataplane.md](dataplane.md)。
+
+实现骨架（v0.8）：Runtime 中枢；MCP/CLI/TUI/GUI 同级 IPC 客户端。复用官方 MCP SDK、`coder/websocket`、cobra、bubbletea、Tauri 2、SQLite。见 [heads.md](heads.md) / [stack.md](stack.md)。

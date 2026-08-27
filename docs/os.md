@@ -63,11 +63,14 @@ Windows：单个 exe，当前用户即可；注意防火墙出站与杀软。Lin
 
 ## 8. 验收（每 Must OS）
 
-1. ensure/start → 有 ID、默认 workspace 已打印、**无**授权码、可 online。
-2. `grant issue` 后，控制端只配三项即可流式 `whoami`/`echo`。
-3. 中文不乱码。
-4. workspace 外 write 失败。
-5. 一条高危 `policy_deny`。
-6. cancel `sleep` / `Start-Sleep`。
-7. 断网 offline，恢复后 online。
-8. Linux 无 DISPLAY：CLI 走完 peer / 流 / cancel。
+按 [PRD.md](PRD.md) 四类。最低集：
+
+**Identity：** ensure/start 有 ID、默认 workspace 已打印、无授权码、入站关；再 ensure 同一 ID。
+
+**Transport：** 断网 offline、插回 online；换自托管 URL 仍能 exec。
+
+**Authorization：** issue 后对端三项即可流式 whoami；错码 `unauthorized`；入站关 `inbound_disabled`；**从控制端不能 rotate/revoke**；本机 rotate 后旧配置失败。
+
+**Execution：** 中文不乱码；结束前至少两帧 stdout；workspace 外 write 失败；write 超 1 MiB `too_large`；高危 `policy_deny`；cancel 自己的 `sleep`/`Start-Sleep` 得 `exit.status=cancelled`；无 DISPLAY 用 CLI 走完 peer/流/cancel。服务端闭环见 [dataplane.md](dataplane.md) 文末验收。
+
+Linux 无头：审批类高危必须是 deny，不能挂起。

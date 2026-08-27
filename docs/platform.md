@@ -21,6 +21,8 @@ Account（用户）
                                   或（以后）某个 Account 的云侧会话
 ```
 
+v0 Grant 是 bearer：出示明文即可，**不**绑上图里的 Controller。Controller 方框是以后 `consumer_type=account|device` 才用。
+
 v0 坍缩：
 
 | 以后 | v0 实际 |
@@ -87,7 +89,7 @@ v0 只有隐式 Owner = 拿着自托管磁盘的人。
 | 本机看自己 ID/状态 | v0 | CLI/GUI/TUI |
 | Peer 列表（我能控谁） | v0 | 存在控制端本地 + 每次问 Relay 在线 |
 | 名下所有设备一览 | v1 hosted / 自托管控制面 | 含办公室那台没开 GUI 的 |
-| 远程吊销、改名、禁用入站 | v1 | 丢电脑时从网页踢掉 |
+| 远程吊销、改名、禁用入站 | v1 | 丢电脑时从网页踢掉；**v0 只能被控本机** |
 | 强制升级 Runtime | 以后 | 和幂等 ensure 对齐 |
 | 库存标签、分组、fleet 调度 | v2 | 「找一台有 GPU 的」 |
 

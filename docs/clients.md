@@ -1,14 +1,16 @@
 # 客户端头：CLI / TUI / GUI
 
-SSOT：人怎么操作。命令前缀 `xallor-remote`。GUI 选型见 [decisions.md](decisions.md)。
+SSOT：人怎么操作。命令前缀 `xallor-remote`。四个头与 Runtime 的关系见 [heads.md](heads.md)。GUI 选型见 [decisions.md](decisions.md)。
 
-可视化 = 设备、授权、流式执行、审批；不是 VNC。v0 用 CLI，v0.1 用 TUI / Tauri GUI。
+可视化 = 设备、授权、流式执行、审批；不是 VNC。v0 用 CLI（完整人机），v0.1 用 TUI / Tauri GUI（同一 IPC 的壳，不是 MCP 的上级）。
 
 ---
 
 ## 1. 原则
 
-人能做的，CLI 在 v0 必须能做。会话 = 流式终端。审批打在被控机本地。签发 grant 不走 MCP tool。
+人能做的，CLI 在 v0 必须能做。会话 = 流式终端。审批打在被控机本地；无头则 denylist，不等待。
+
+`grant issue/rotate`、`inbound`、`revoke` / `reset` **只在被控的那台本机**执行。控制端可以 `peer add` 和 invoke（exec/read/write/…），**不能**改对方授权。
 
 ---
 
