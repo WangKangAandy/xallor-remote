@@ -6,20 +6,23 @@ SSOT：mcp 配置与 tools。ensure 见 [ipc.md](ipc.md) / [model.md](model.md)�
 
 ## 1. 它是什么
 
-Cursor 等 spawn 的短驻 stdio 进程：`npx xallor-remote-mcp`。ensure Go Runtime；经 IPC 发任务；不持有到 Relay 的长期 WSS；不签发、不轮换、不吊销 grant，也不开关入站。用官方 MCP SDK，不要自实现协议。
+Cursor 等 spawn 的短驻 stdio 进程：全局安装后的 `xallor-remote-mcp`（或已发布后的 `npx -y xallor-remote-mcp`）。包内带本平台 Runtime（`vendor/`），ensure 时优先用；禁止静默联网下载。经 IPC 发任务；不持有到 Relay 的长期 WSS；不签发、不轮换、不吊销 grant，也不开关入站。用官方 MCP SDK，不要自实现协议。
+
+被控端也可只装同一包：`xallor-remote start` / `grant issue` / `inbound on`（`bin` 入口转发到内置二进制）。
 
 ---
 
 ## 2. 配置
 
-单台覆盖（Runtime 收编进 peers）。Relay URL 可省略，默认官方 hosted。
+先安装：`npm install -g xallor-remote-mcp-*.tgz`（或上架后的包名）。**未发布到 registry 时不要用 `npx -y`**（会 404）。
+
+单台覆盖（Runtime 收编进 peers）。Relay URL 可省略，默认官方 hosted `wss://api.xallor.com/remote`。
 
 ```json
 {
   "mcpServers": {
     "xallor-remote": {
-      "command": "npx",
-      "args": ["-y", "xallor-remote-mcp"],
+      "command": "xallor-remote-mcp",
       "env": {
         "XALLOR_REMOTE_DEVICE_ID": "dev_windows_gpu",
         "XALLOR_REMOTE_DEVICE_GRANT": "xr_grant_…"
@@ -29,11 +32,11 @@ Cursor 等 spawn 的短驻 stdio 进程：`npx xallor-remote-mcp`。ensure Go Ru
 }
 ```
 
-自托管时再加 `XALLOR_REMOTE_RELAY_URL`。多台用 `xallor-remote peer add`。不要写 IP / SSH。
+自托管时再加 `XALLOR_REMOTE_RELAY_URL`。多台用 `xallor-remote peer add`。不要写 IP / SSH。覆盖内置二进制时设 `XALLOR_REMOTE_BIN`。
 
 可选：`XALLOR_REMOTE_TLS_INSECURE`（仅本机调试）、`XALLOR_REMOTE_LOG_LEVEL`、`XALLOR_REMOTE_STREAM_MODE`。
 
-缺 grant 要在第一条 tool call 报错。不要把 mcp.json 提交进 git。
+缺 grant 要在第一条 tool call 报错。不要把 mcp.json 提交进 git。启动时不要往 stderr 打版本横幅（Cursor 会当成 error）。
 
 ---
 

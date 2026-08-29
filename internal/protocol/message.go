@@ -36,6 +36,19 @@ type ExecPayload struct {
 	TimeoutMS int    `json:"timeout_ms,omitempty"`
 }
 
+type ReadPayload struct {
+	Path   string `json:"path"`
+	Head   int    `json:"head,omitempty"`
+	Tail   int    `json:"tail,omitempty"`
+	Offset int    `json:"offset,omitempty"`
+	Limit  int    `json:"limit,omitempty"`
+}
+
+type WritePayload struct {
+	Path    string `json:"path"`
+	Content string `json:"content"`
+}
+
 func (m Message) Bytes() ([]byte, error) {
 	return json.Marshal(m)
 }

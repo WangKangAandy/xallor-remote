@@ -13,3 +13,9 @@ Thumbs.db
 *.exe
 /xallor-remote
 bin/
+dist/
+packages/mcp/vendor/
+apps/gui/src-tauri/target/
+apps/gui/src-tauri/gen/
+
+apps/gui/.vite/

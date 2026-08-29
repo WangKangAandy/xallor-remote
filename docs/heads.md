@@ -58,7 +58,7 @@ CLI **不是** GUI 的简化版。反过来：CLI 先覆盖人能做的全部；
 
 `ensure`：已有 Runtime 则复用；没有则以后台拉起再连。MCP 启动时只做 ensure + IPC，**不**自己当 Runtime。
 
-GUI：Tauri 进程只当 IPC 客户端（可用 sidecar 带上同一 `xallor-remote` 做 ensure）。**禁止** GUI 直接 `wss://relay`。
+GUI：Tauri 进程只当 IPC 客户端（可用 sidecar 或本机已 ensure 的 Runtime）。**禁止** GUI 直接 `wss://relay`。人侧安装见 [stack.md](stack.md) / [mcp.md](mcp.md)：优先一个 npm 包。
 
 ---
 

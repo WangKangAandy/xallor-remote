@@ -64,8 +64,10 @@ SSOT：命名管道 / Unix socket 上的报文与 ensure。路径与权限见 [d
 | `revoke` / `reset` | 人侧头 | reset 须 `params.confirm=true` |
 | `peer.add` / `list` / `remove` | 任一头 | add 会收编 mcp.json 那套 id+grant |
 | `config.get` / `config.set` | 人侧头 | relay URL、workspace、shell |
+| `approval.subscribe` | 人侧头 | 注册为审批 UI；断开即取消 |
+| `approval.respond` | 人侧头 | 同一 `id`，`{allow:bool}` |
 
-MCP **可以**调 `status` / `peer.*` / 下面远程方法；**不要**调 grant/inbound/revoke（包里不实现）。Runtime 不做「MCP 指纹鉴权」——防模型靠 tool 面，不靠 IPC 分角色。
+MCP **可以**调 `status` / `peer.*` / 下面远程方法；**不要**调 grant/inbound/revoke（包里不实现）。Runtime 不做「MCP 指纹鉴权」——防模型靠 tool 面，不靠 IPC 分角色。MCP 连接**不算**审批 UI。
 
 ### 远程（Runtime 再走 WSS）
 
@@ -100,7 +102,7 @@ v0：**发出后 T 秒内没有任何头订阅/应答 → `policy_deny` 或 `app
 ```text
 1. 试连 IPC
 2. 通 → 发 status，版本不匹配则报错退出（见 [stack.md](stack.md)）
-3. 不通 → 按 PATH / XALLOR_REMOTE_BIN / 数据目录 bin 找到 xallor-remote
+3. 不通 → 按顺序找 `xallor-remote`：`XALLOR_REMOTE_BIN` → npm 包内 `vendor/<platform>/` → `PATH` → 数据目录 `bin/`
 4. 拉起：xallor-remote start --daemon（Windows 无窗口；Unix 脱离终端）
 5. 轮询 IPC，默认 10s，失败给人话（找不到二进制、权限、杀软）
 6. 通了之后：若环境变量带 DEVICE_ID+GRANT，peer.add 收编（幂等）

@@ -115,12 +115,64 @@ func TestInvokeRoutesAndExitDeletesInflight(t *testing.T) {
 	}
 }
 
+func TestOversizeStdoutMarksTruncatedOnExit(t *testing.T) {
+	h := NewHub(newMemStore())
+	dev, cli := &recSender{}, &recSender{}
+	h.RegisterDevice("dev_a", "secret", true, dev)
+	h.mu.Lock()
+	h.devices["dev_a"].inbound = true
+	h.mu.Unlock()
+	h.Handle(cli, protocol.RoleClient, "dev_a", protocol.Message{
+		Type: protocol.TypeInvoke, ExecID: "ex_t", Op: protocol.OpExec,
+	})
+	big := strings.Repeat("x", protocol.MaxFrameBytes+1)
+	h.Handle(dev, protocol.RoleDevice, "dev_a", protocol.Message{
+		Type: protocol.TypeStdout, ExecID: "ex_t", Data: big,
+	})
+	ec := 0
+	h.Handle(dev, protocol.RoleDevice, "dev_a", protocol.Message{
+		Type: protocol.TypeExit, ExecID: "ex_t", ExitCode: &ec, Status: protocol.ExitCompleted,
+	})
+	last := cli.last()
+	if last.Type != protocol.TypeExit || last.Truncated == nil || !*last.Truncated {
+		t.Fatalf("want truncated exit got %+v", last)
+	}
+}
+
 func TestClientCannotRevoke(t *testing.T) {
 	h := NewHub(newMemStore())
 	cli := &recSender{}
 	h.Handle(cli, protocol.RoleClient, "dev_a", protocol.Message{Type: protocol.TypeRevoke, DeviceID: "dev_a"})
 	if cli.last().Code != protocol.Unauthorized {
 		t.Fatalf("got %+v", cli.last())
+	}
+}
+
+func TestClientDropSendsCancelToDevice(t *testing.T) {
+	h := NewHub(newMemStore())
+	dev, cli := &recSender{}, &recSender{}
+	h.RegisterDevice("dev_a", "secret", true, dev)
+	h.mu.Lock()
+	h.devices["dev_a"].inbound = true
+	h.mu.Unlock()
+	h.Handle(cli, protocol.RoleClient, "dev_a", protocol.Message{
+		Type: protocol.TypeInvoke, ExecID: "ex_drop", Op: protocol.OpExec,
+	})
+	h.Drop(cli, protocol.RoleClient, "dev_a")
+	found := false
+	for _, m := range dev.got {
+		if m.Type == protocol.TypeInvoke && m.Op == protocol.OpCancel && m.ExecID == "ex_drop" {
+			found = true
+		}
+	}
+	if !found {
+		t.Fatalf("device did not get cancel on client drop: %+v", dev.got)
+	}
+	h.mu.Lock()
+	_, still := h.inflight["ex_drop"]
+	h.mu.Unlock()
+	if still {
+		t.Fatal("inflight must be deleted on client drop")
 	}
 }
 

@@ -57,7 +57,11 @@ Linux：`~/.ssh`、`~/.gnupg`、`/etc/shadow`、`/dev/sd*`；`rm -rf /`、`mkfs`
 
 ## 7. 安装形态
 
-Windows：单个 exe，当前用户即可；注意防火墙出站与杀软。Linux：amd64 二进制（deb 可选）；不依赖桌面；写明最低 glibc（如 Ubuntu 22.04+）。macOS：公证成本高，故 v0.1。
+主路径：**一个 npm 包** `xallor-remote-mcp`（内嵌本平台 Runtime）。控制端配 mcp.json；被控端用同包的 `xallor-remote` 子命令。
+
+备选：GitHub Releases 的单个 `xallor-remote` exe/二进制（无 Node）。Windows 注意防火墙出站与杀软。Linux amd64（deb 可选）；不依赖桌面；写明最低 glibc（如 Ubuntu 22.04+）。macOS：公证成本高，故 v0.1。
+
+官方中转默认 `wss://api.xallor.com/remote`（与 Tab 的 `/api` 同域分流）。
 
 ---
 

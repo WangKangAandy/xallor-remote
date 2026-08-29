@@ -68,3 +68,5 @@ v0 用 **SQLite** 单文件（`--data` 目录内），驱动见 [stack.md](stack
 ```text
 xallor-remote relay --listen 0.0.0.0:8443 --data ./var/xallor-remote
 ```
+
+官方实例：`wss://api.xallor.com/remote`（探活 `GET https://api.xallor.com/remote/health`）。与 Tab API 同证书、同主机，靠路径分流。不要为 invoke 另开 HTTP。

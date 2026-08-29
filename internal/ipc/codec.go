@@ -18,10 +18,12 @@ type Frame struct {
 	ID      string          `json:"id,omitempty"`
 	Event   string          `json:"event,omitempty"`
 	Data    string          `json:"data,omitempty"`
+	Params  json.RawMessage `json:"params,omitempty"`
 	OK      *bool           `json:"ok,omitempty"`
 	Result  json.RawMessage `json:"result,omitempty"`
 	Code    string          `json:"code,omitempty"`
 	Message string          `json:"message,omitempty"`
+	ExecID  string          `json:"exec_id,omitempty"`
 }
 
 type Conn struct {
@@ -86,6 +88,11 @@ func Event(id, ev, data string) Frame {
 	return Frame{ID: id, Event: ev, Data: data}
 }
 
+func EventParams(id, ev string, params any) Frame {
+	raw, _ := json.Marshal(params)
+	return Frame{ID: id, Event: ev, Params: raw}
+}
+
 func Call(c *Conn, id, method string, params any) error {
 	raw, err := json.Marshal(params)
 	if err != nil {
@@ -116,6 +123,20 @@ func Human(code string) string {
 		return "没有这条任务。"
 	case "relay_error":
 		return "中转已断开，请稍后重试。"
+	case "exec_timeout":
+		return "执行超时。"
+	case "cancelled":
+		return "任务已取消。"
+	case "policy_deny":
+		return "策略拒绝。"
+	case "approval_timeout":
+		return "等待确认超时。请在本机批准后重试。"
+	case "too_large":
+		return "内容超过上限。"
+	case "workspace_missing":
+		return "workspace 目录不可用。"
+	case "quota_exceeded":
+		return "已超过中转限额，请稍后再试。"
 	default:
 		if code == "" {
 			return "失败。"

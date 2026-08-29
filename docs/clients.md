@@ -39,13 +39,14 @@ xallor-remote revoke
 xallor-remote peer add --id … --grant …
 xallor-remote peer list
 xallor-remote exec --device … -- <command>
+xallor-remote approve
 xallor-remote mcp print-config
 xallor-remote mcp merge-config
 xallor-remote relay [--listen :8443 --data <dir>]
 xallor-remote reset --yes
 ```
 
-`inbound off` 保留身份；`revoke` 销毁登记。尚无授权码时 `inbound on` 等同 `grant issue`。
+`inbound off` 保留身份；`revoke` 销毁登记。尚无授权码时 `inbound on` 等同 `grant issue`。`approve`：本机交互确认高危命令；无 TTY 时不要跑。
 
 ---
 
@@ -59,12 +60,14 @@ xallor-remote reset --yes
 
 **Tauri 2**，调本机 Runtime。5 分钟：看见 ID、issue、加 peer、结束前看到输出行。左栏：本机 / Peer / 会话 / 审批 / 审计 / 设置。不做键鼠。不做 Electron。
 
+工程：`apps/gui`。本机需 Rust + MSVC；开发 `npm run tauri:dev`，发行物 `xallor-remote-gui.exe`（先有本机 Runtime）。
+
 ---
 
 ## 6. 环境默认
 
 | 环境 | v0 | 之后 |
 | --- | --- | --- |
-| Windows + Cursor | MCP + Runtime + CLI | Tauri GUI |
-| Linux 无 GUI | Runtime + CLI | TUI |
+| Windows + Cursor | 一个 npm：`xallor-remote-mcp`（内含 Runtime）+ CLI | Tauri GUI |
+| Linux 无 GUI | 同上 npm，或纯 Go 二进制 + CLI | TUI |
 | Linux 有桌面 | 同 Windows | GUI 可选 |

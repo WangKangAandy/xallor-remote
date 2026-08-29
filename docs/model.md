@@ -19,13 +19,14 @@ SSOT：安装形态、幂等、双向、本机进程。头之间谁听谁见 [he
 （四个头同级，都只连 IPC；GUI 不是中枢）
 ```
 
-Relay 默认官方 hosted（`wss://relay.xallorremote.com`），可改 URL 自托管。
+Relay 默认官方 hosted（`wss://api.xallor.com/remote`），可改 URL 自托管。同域的 `/api` 仍是账号/壁纸 API。
 
 ---
 
 ## 2. 通用包与幂等
 
-- MCP 包：`xallor-remote-mcp`，跨 OS 同一包。ensure 拉起本 OS 的 Go Runtime。
+- 主安装面：npm **`xallor-remote-mcp` 一个包**（MCP + 内嵌 Runtime）。控制端装一次即可；被控端也可用同一包的 `xallor-remote start` / `grant` / `inbound`。
+- 纯 Go 发行（无 Node）仍保留：GitHub Releases 的 `xallor-remote` 单文件。
 - 第一次被 Cursor 拉起：ensure → identity 已有则不重建 → **不** grant issue → 经 Runtime 干活。
 - `xallor-remote mcp merge-config` 只幂等追加本产品条目。
 

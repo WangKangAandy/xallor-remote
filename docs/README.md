@@ -80,7 +80,7 @@ CLI：`xallor-remote`。路径与前缀见 [decisions.md](decisions.md)。`platf
 产品（v0.5）：
 
 1. 品牌 **XallorRemote**，CLI `xallor-remote`。
-2. 默认官方 hosted Relay；自托管随时可换。
+2. 默认官方 hosted Relay：`wss://api.xallor.com/remote`；自托管随时可换。
 3. Windows named pipe / Unix socket，不对 localhost 随机开端口。
 4. Runtime/Relay/CLI/TUI = Go；MCP = TypeScript；GUI = Tauri 2。
 5. 默认 workspace 为用户目录下 `XallorRemote/workspace`，启动打印，禁止静默用盘符根。

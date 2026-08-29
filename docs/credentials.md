@@ -9,7 +9,7 @@ SSOT：三套秘密与授权语义。协议角色见 [protocol.md](protocol.md)�
 `xallor-remote start` 之后：
 
 ```text
-Relay:     wss://relay.xallorremote.com
+Relay:     wss://api.xallor.com/remote
 Device ID: dev_windows_gpu
 Workspace: C:\Users\<you>\XallorRemote\workspace
 入站:      关（还没有授权码）

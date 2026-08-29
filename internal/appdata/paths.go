@@ -57,5 +57,5 @@ func DefaultRelayURL() string {
 	if u := os.Getenv("XALLOR_REMOTE_RELAY_URL"); u != "" {
 		return u
 	}
-	return "wss://relay.xallorremote.com"
+	return "wss://api.xallor.com/remote"
 }

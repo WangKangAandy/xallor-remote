@@ -16,22 +16,25 @@ import (
 	"github.com/WangKangAandy/xallor-remote/internal/identity"
 	"github.com/WangKangAandy/xallor-remote/internal/ipc"
 	"github.com/WangKangAandy/xallor-remote/internal/noderun"
+	"github.com/WangKangAandy/xallor-remote/internal/protocol"
 	"github.com/WangKangAandy/xallor-remote/internal/relay"
 )
 
 func Execute() error {
+	initConsole()
 	root := &cobra.Command{
 		Use:           "xallor-remote",
 		Short:         "XallorRemote：经 Relay 远程执行",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 	}
-	root.AddCommand(cmdRelay(), cmdStart(), cmdEnsure(), cmdStatus(), cmdGrant(), cmdPeer(), cmdExec())
+	root.AddCommand(cmdRelay(), cmdStart(), cmdEnsure(), cmdStop(), cmdStatus(), cmdGrant(), cmdInbound(), cmdRevoke(), cmdReset(), cmdPeer(), cmdExec(), cmdApprove(), cmdTUI(), cmdMCP())
 	return root.Execute()
 }
 
 func cmdRelay() *cobra.Command {
 	var listen, data string
+	var quota bool
 	c := &cobra.Command{
 		Use:   "relay",
 		Short: "运行中转",
@@ -44,11 +47,12 @@ func cmdRelay() *cobra.Command {
 				data = filepath.Join(dir, "relay")
 			}
 			log := slog.New(slog.NewTextHandler(os.Stderr, nil))
-			return relay.Serve(listen, data, log)
+			return relay.Serve(listen, data, log, relay.Quota{Enabled: quota})
 		},
 	}
 	c.Flags().StringVar(&listen, "listen", ":8443", "监听地址")
 	c.Flags().StringVar(&data, "data", "", "数据目录")
+	c.Flags().BoolVar(&quota, "quota", false, "启用源 IP 限额")
 	return c
 }
 
@@ -101,6 +105,21 @@ func cmdGrant() *cobra.Command {
 				return err
 			}
 			res, err := rpc("grant.issue", map[string]any{})
+			if err != nil {
+				return err
+			}
+			fmt.Printf("授权码: %s    ← 把这一行给对方\n", res["grant"])
+			return nil
+		},
+	})
+	c.AddCommand(&cobra.Command{
+		Use:   "rotate",
+		Short: "换新授权码，旧码立刻失效",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := ensureRuntime(); err != nil {
+				return err
+			}
+			res, err := rpc("grant.rotate", map[string]any{})
 			if err != nil {
 				return err
 			}
@@ -162,9 +181,41 @@ func cmdPeer() *cobra.Command {
 			if err := ensureRuntime(); err != nil {
 				return err
 			}
-			return printStatus()
+			res, err := rpc("peer.list", map[string]any{})
+			if err != nil {
+				return err
+			}
+			raw, _ := res["peers"].([]any)
+			if len(raw) == 0 {
+				fmt.Println("还没有对方设备。")
+				return nil
+			}
+			for _, p := range raw {
+				fmt.Println(p)
+			}
+			return nil
 		},
 	})
+	var rid string
+	rm := &cobra.Command{
+		Use:   "remove",
+		Short: "删除对方设备",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if rid == "" {
+				return fmt.Errorf("需要 --id")
+			}
+			if err := ensureRuntime(); err != nil {
+				return err
+			}
+			if _, err := rpc("peer.remove", map[string]any{"device_id": rid}); err != nil {
+				return err
+			}
+			fmt.Println("已删除", rid)
+			return nil
+		},
+	}
+	rm.Flags().StringVar(&rid, "id", "", "对方设备 ID")
+	c.AddCommand(rm)
 	return c
 }
 
@@ -198,6 +249,8 @@ func printBanner(st *identity.Store) {
 	fmt.Printf("Workspace: %s\n", ws)
 	if inbound && grant != "" {
 		fmt.Println("入站:      开")
+	} else if grant != "" {
+		fmt.Println("入站:      关")
 	} else {
 		fmt.Println("入站:      关（还没有授权码）")
 	}
@@ -296,6 +349,18 @@ func streamExec(device, command string) error {
 			continue
 		}
 		if fr.OK != nil && *fr.OK {
+			var res struct {
+				Status string `json:"status"`
+			}
+			if len(fr.Result) > 0 {
+				_ = json.Unmarshal(fr.Result, &res)
+			}
+			switch res.Status {
+			case protocol.ExitCancelled:
+				return fmt.Errorf("%s", ipc.Human(protocol.Cancelled))
+			case protocol.ExitTimeout:
+				return fmt.Errorf("%s", ipc.Human(protocol.ExecTimeout))
+			}
 			return nil
 		}
 		if fr.OK != nil && !*fr.OK {

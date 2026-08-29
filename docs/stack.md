@@ -11,10 +11,10 @@ SSOT：语言、库、仓库形态、发行。语言级选型结论在 [decision
 | 部分 | 语言 | 产物 |
 | --- | --- | --- |
 | Runtime / Relay / CLI / TUI | Go（当前稳定版，`go.mod` 钉次新或最新） | 单一二进制 `xallor-remote` |
-| MCP | TypeScript，Node **20+** | npm：`xallor-remote-mcp` |
+| MCP | TypeScript，Node **20+** | npm：`xallor-remote-mcp`（内嵌本平台 Runtime；另提供 `bin`：`xallor-remote`） |
 | GUI v0.1 | Tauri 2 + 薄 Web 前端 | 另发安装包，逻辑仍走 IPC |
 
-无头被控机 **只需要 Go 二进制**，不需要 Node。
+无头被控机可以 **只装 Go 二进制**，也可以 **只装同一个 npm 包**（用 `xallor-remote start`，不跑 Cursor）。控制端装一次 npm 即可 ensure。
 
 ---
 
@@ -65,12 +65,12 @@ docs/
 
 | 渠道 | v0 |
 | --- | --- |
-| GitHub Releases | `xallor-remote` 各平台文件 + SHA256SUMS |
-| npm | **只有** TS MCP；`ensure` 找已安装的 Go 二进制 |
-| 查找顺序 | `XALLOR_REMOTE_BIN` → `PATH` 上的 `xallor-remote` → 数据目录 `bin/` |
+| GitHub Releases | `xallor-remote` 各平台文件 + SHA256SUMS（纯 Go / 无 Node 场景） |
+| npm | **`xallor-remote-mcp` 一个包**：MCP 头 + 嵌入的本平台 Runtime（`vendor/`）；`bin` 含 `xallor-remote-mcp` 与 `xallor-remote` |
+| 查找顺序 | `XALLOR_REMOTE_BIN` → **npm 包内 `vendor/<platform>/`** → `PATH` → 数据目录 `bin/` |
 | 找不到 | 报错 + 安装说明，**禁止静默联网下载** |
 
-以后可加 npm `optionalDependencies` 平台包，仍要校验 checksum。不要把 secret 打进包。
+打 npm 包时用仓库脚本把已构建二进制拷进 `vendor/` 再 `npm pack`。以后可再拆 `optionalDependencies` 平台包并校验 checksum。不要把 secret 打进包。
 
 MCP 与 Runtime **主版本必须一致**（IPC `status` 里带 `runtime_version`）。大版本不匹配则拒绝干活，避免半套协议。
 

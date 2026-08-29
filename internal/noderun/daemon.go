@@ -30,6 +30,7 @@ func (w *wsConn) send(m protocol.Message) error {
 type clientLink struct {
 	target string
 	ws     *wsConn
+	cancel context.CancelFunc
 	mu     sync.Mutex
 }
 
@@ -39,17 +40,27 @@ type Daemon struct {
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	mu      sync.Mutex
-	device  *wsConn
-	clients map[string]*clientLink
-	local   map[string]context.CancelFunc
+	mu        sync.Mutex
+	device    *wsConn
+	clients   map[string]*clientLink
+	local     map[string]context.CancelFunc
+	remote    map[string]*remoteExec
+	approvals *approvalHub
+}
+
+type remoteExec struct {
+	link *wsConn
+	ipc  *ipc.Conn
 }
 
 func New(store *identity.Store, log *slog.Logger) *Daemon {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Daemon{
 		log: log, store: store, ctx: ctx, cancel: cancel,
-		clients: map[string]*clientLink{}, local: map[string]context.CancelFunc{},
+		clients:   map[string]*clientLink{},
+		local:     map[string]context.CancelFunc{},
+		remote:    map[string]*remoteExec{},
+		approvals: newApprovalHub(),
 	}
 }
 
@@ -166,6 +177,7 @@ func (d *Daemon) onDeviceMsg(link *wsConn, msg protocol.Message) {
 	case protocol.TypeHeartbeat:
 	case protocol.TypeInvoke:
 		if msg.Op == protocol.OpCancel {
+			d.approvals.cancelExec(msg.ExecID)
 			d.mu.Lock()
 			cancel := d.local[msg.ExecID]
 			d.mu.Unlock()
@@ -174,9 +186,34 @@ func (d *Daemon) onDeviceMsg(link *wsConn, msg protocol.Message) {
 			}
 			return
 		}
-		if msg.Op == protocol.OpExec {
+		switch msg.Op {
+		case protocol.OpExec:
 			go d.runLocalExec(link, msg)
+		case protocol.OpRead:
+			go d.runLocalRead(link, msg)
+		case protocol.OpWrite:
+			go d.runLocalWrite(link, msg)
+		case protocol.OpProcesses:
+			go d.runLocalProcesses(link, msg)
+		case protocol.OpInfo:
+			go d.runLocalInfo(link, msg)
 		}
+	}
+}
+
+func (d *Daemon) dropClient(id string) {
+	d.mu.Lock()
+	cl := d.clients[id]
+	delete(d.clients, id)
+	d.mu.Unlock()
+	if cl == nil {
+		return
+	}
+	if cl.cancel != nil {
+		cl.cancel()
+	}
+	if cl.ws != nil && cl.ws.conn != nil {
+		_ = cl.ws.conn.Close(websocket.StatusNormalClosure, "")
 	}
 }
 

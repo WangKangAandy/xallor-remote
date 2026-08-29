@@ -38,17 +38,24 @@ func Load() (*Store, error) {
 	if err != nil {
 		return nil, err
 	}
+	return LoadFrom(dir)
+}
+
+func LoadFrom(dir string) (*Store, error) {
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
 	s := &Store{Dir: dir}
 	idPath := filepath.Join(dir, "identity.json")
+	var inboundOverride *bool
 	if b, err := os.ReadFile(idPath); err == nil {
 		var wrap struct {
 			DeviceID string `json:"device_id"`
+			Inbound  *bool  `json:"inbound"`
 		}
 		_ = json.Unmarshal(b, &wrap)
 		s.DeviceID = wrap.DeviceID
+		inboundOverride = wrap.Inbound
 	}
 	if b, err := os.ReadFile(filepath.Join(dir, "device_secret")); err == nil {
 		s.Secret = string(b)
@@ -57,13 +64,18 @@ func Load() (*Store, error) {
 		s.Grant = string(b)
 		s.Inbound = s.Grant != ""
 	}
+	if inboundOverride != nil {
+		s.Inbound = *inboundOverride
+	}
 	if b, err := os.ReadFile(filepath.Join(dir, "config.json")); err == nil {
 		_ = json.Unmarshal(b, &s.Config)
 	}
 	if b, err := os.ReadFile(filepath.Join(dir, "peers.json")); err == nil {
 		_ = json.Unmarshal(b, &s.Peers)
 	}
-	if s.Config.RelayURL == "" {
+	if u := os.Getenv("XALLOR_REMOTE_RELAY_URL"); u != "" {
+		s.Config.RelayURL = u
+	} else if s.Config.RelayURL == "" {
 		s.Config.RelayURL = appdata.DefaultRelayURL()
 	}
 	if s.Config.Workspace == "" {
@@ -95,7 +107,7 @@ func Load() (*Store, error) {
 }
 
 func (s *Store) persistIdentity() error {
-	b, _ := json.MarshalIndent(map[string]string{"device_id": s.DeviceID}, "", "  ")
+	b, _ := json.MarshalIndent(map[string]any{"device_id": s.DeviceID, "inbound": s.Inbound}, "", "  ")
 	if err := os.WriteFile(filepath.Join(s.Dir, "identity.json"), b, 0o600); err != nil {
 		return err
 	}
@@ -130,6 +142,9 @@ func (s *Store) IssueGrant() (string, error) {
 	s.Grant = g
 	s.Inbound = true
 	if err := s.persistGrant(); err != nil {
+		return "", err
+	}
+	if err := s.persistIdentity(); err != nil {
 		return "", err
 	}
 	return g, nil

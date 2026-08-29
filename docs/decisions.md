@@ -28,7 +28,8 @@
 
 **拍板：**
 
-- 客户端 **默认** `XALLOR_REMOTE_RELAY_URL=wss://relay.xallorremote.com`。
+- 客户端 **默认** `XALLOR_REMOTE_RELAY_URL=wss://api.xallor.com/remote`。
+- 和 Tab 同属 Xallor、同一台 `api.xallor.com`：`/api` 是账号/壁纸 API；`/remote` 是 Remote 中转（WSS）。不要为 invoke 另开 HTTP。
 - v0 官方 Relay：**无账号**，只靠 device secret / grant；不做计费、不做组织。可做连接数与流量的硬顶，超限 `quota_exceeded`。
 - **自托管一等公民**：`xallor-remote relay --listen :8443 --data <dir>`，改 URL 即切走。数据不锁死在云上。
 - Relay 行为契约（连接、inflight、流、cancel、断线、背压）只在 [dataplane.md](dataplane.md)，本文不重复。
